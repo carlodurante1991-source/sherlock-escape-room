@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase"; 
 import { ref, onValue, update } from "firebase/database";
-import { Play, Pause, Send, RotateCcw, Monitor } from "lucide-react";
+import { Play, Pause, Send, RotateCcw } from "lucide-react";
 import { QRCodeSVG } from 'qrcode.react';
 
-const MasterControl = () => {
+// Aggiungiamo tableId tra le parentesi per ricevere il numero del tavolo
+const MasterControl = ({ tableId = "1" }: { tableId?: string }) => {
   const [tableData, setTableData] = useState<any>(null);
   const [hintText, setHintText] = useState("");
 
   useEffect(() => {
-    const tableRef = ref(db, "sessions/tavolo_1");
+    // Il percorso ora dipende da tableId
+    const tableRef = ref(db, `sessions/tavolo_${tableId}`);
     
     const unsubscribe = onValue(tableRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setTableData(data);
       } else {
+        // Se la stanza non esiste, la creiamo
         update(tableRef, {
           status: 'waiting',
           timer: 3600,
@@ -28,7 +31,8 @@ const MasterControl = () => {
       setTableData((current: any) => {
         if (current && current.status === 'playing' && current.timer > 0) {
           const newTime = current.timer - 1;
-          update(ref(db, "sessions/tavolo_1"), { timer: newTime });
+          // Aggiorna Firebase ogni secondo
+          update(ref(db, `sessions/tavolo_${tableId}`), { timer: newTime });
           return { ...current, timer: newTime };
         }
         return current;
@@ -39,10 +43,10 @@ const MasterControl = () => {
       unsubscribe();
       clearInterval(timerInterval);
     };
-  }, []);
+  }, [tableId]); // Ricarica se cambia il tavolo
 
   const updateTable = (newData: any) => {
-    update(ref(db, "sessions/tavolo_1"), newData);
+    update(ref(db, `sessions/tavolo_${tableId}`), newData);
   };
 
   const addTime = (minutes: number) => {
@@ -52,7 +56,7 @@ const MasterControl = () => {
   };
 
   const resetGame = () => {
-    if (window.confirm("Sei sicuro di voler resettare la partita?")) {
+    if (window.confirm(`Sei sicuro di voler resettare il Tavolo ${tableId}?`)) {
       updateTable({
         status: 'waiting',
         timer: 3600,
@@ -63,7 +67,7 @@ const MasterControl = () => {
 
   if (!tableData) return (
     <div style={{color: 'white', padding: '40px', backgroundColor: '#09090b', minHeight: '100vh'}}>
-      <p>🔍 Connessione a Firebase in corso...</p>
+      <p>🔍 Connessione al Tavolo {tableId}...</p>
     </div>
   );
 
@@ -72,7 +76,7 @@ const MasterControl = () => {
       <header style={{ borderBottom: '1px solid #27272a', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ color: '#f59e0b', margin: 0, fontSize: '24px' }}>SHERLOCK MASTER CONTROL</h1>
-          <p style={{ color: '#666', margin: '5px 0 0 0' }}>Gestione Sessione: Tavolo 1</p>
+          <p style={{ color: '#666', margin: '5px 0 0 0' }}>Stanza Attiva: **Tavolo {tableId}**</p>
         </div>
         <button 
           onClick={resetGame}
@@ -108,15 +112,15 @@ const MasterControl = () => {
             </div>
           </div>
 
-          {/* QR CODE PER I TABLET */}
+          {/* QR CODE DINAMICO */}
           <div style={{ background: '#18181b', padding: '20px', borderRadius: '16px', border: '1px solid #27272a', display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ background: 'white', padding: '10px', borderRadius: '8px' }}>
-              {/* Sostituisci l'URL sotto con quello del tuo sito player una volta online */}
-              <QRCodeSVG value="https://tua-app-sherlock.vercel.app" size={100} />
+              {/* Il QR ora include automaticamente l'ID del tavolo corretto */}
+              <QRCodeSVG value={`https://sherlock-escape-room.vercel.app?role=player&table=${tableId}`} size={120} />
             </div>
             <div>
-              <h4 style={{ margin: '0 0 5px 0', color: '#f59e0b' }}>Accesso Tablet</h4>
-              <p style={{ margin: 0, fontSize: '13px', color: '#a1a1aa' }}>Inquadra per collegare lo schermo dei giocatori.</p>
+              <h4 style={{ margin: '0 0 5px 0', color: '#f59e0b' }}>Tablet Tavolo {tableId}</h4>
+              <p style={{ margin: 0, fontSize: '13px', color: '#a1a1aa' }}>Inquadra per collegare il tablet di questa stanza.</p>
             </div>
           </div>
         </div>
