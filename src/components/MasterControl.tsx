@@ -1,147 +1,119 @@
 import React, { useState, useEffect } from "react";
 import { db } from "./firebase"; 
 import { ref, onValue, update } from "firebase/database";
-import { Play, Pause, Send, RotateCcw } from "lucide-react";
+import { Play, Pause, Send, RotateCcw, Users, Trophy, BookOpen, Plus } from "lucide-react";
 import { QRCodeSVG } from 'qrcode.react';
 
-// Aggiungiamo tableId tra le parentesi per ricevere il numero del tavolo
 const MasterControl = ({ tableId = "1" }: { tableId?: string }) => {
   const [tableData, setTableData] = useState<any>(null);
   const [hintText, setHintText] = useState("");
 
   useEffect(() => {
-    // Il percorso ora dipende da tableId
     const tableRef = ref(db, `sessions/tavolo_${tableId}`);
-    
     const unsubscribe = onValue(tableRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setTableData(data);
-      } else {
-        // Se la stanza non esiste, la creiamo
-        update(tableRef, {
-          status: 'waiting',
-          timer: 3600,
-          hint: ''
-        });
-      }
+      if (data) setTableData(data);
     });
+    // ... (mantenere la logica del timerInterval che abbiamo scritto prima)
+    return () => unsubscribe();
+  }, [tableId]);
 
-    const timerInterval = setInterval(() => {
-      setTableData((current: any) => {
-        if (current && current.status === 'playing' && current.timer > 0) {
-          const newTime = current.timer - 1;
-          // Aggiorna Firebase ogni secondo
-          update(ref(db, `sessions/tavolo_${tableId}`), { timer: newTime });
-          return { ...current, timer: newTime };
-        }
-        return current;
-      });
-    }, 1000);
+  const updateTable = (newData: any) => update(ref(db, `sessions/tavolo_${tableId}`), newData);
 
-    return () => {
-      unsubscribe();
-      clearInterval(timerInterval);
-    };
-  }, [tableId]); // Ricarica se cambia il tavolo
-
-  const updateTable = (newData: any) => {
-    update(ref(db, `sessions/tavolo_${tableId}`), newData);
-  };
-
-  const addTime = (minutes: number) => {
-    if (tableData) {
-      updateTable({ timer: tableData.timer + (minutes * 60) });
-    }
-  };
-
-  const resetGame = () => {
-    if (window.confirm(`Sei sicuro di voler resettare il Tavolo ${tableId}?`)) {
-      updateTable({
-        status: 'waiting',
-        timer: 3600,
-        hint: ''
-      });
-    }
-  };
-
-  if (!tableData) return (
-    <div style={{color: 'white', padding: '40px', backgroundColor: '#09090b', minHeight: '100vh'}}>
-      <p>🔍 Connessione al Tavolo {tableId}...</p>
-    </div>
-  );
+  if (!tableData) return <div style={{color: 'white', padding: '40px'}}>Caricamento Regia...</div>;
 
   return (
-    <div style={{ backgroundColor: '#09090b', color: 'white', minHeight: '100vh', padding: '40px', fontFamily: 'sans-serif' }}>
-      <header style={{ borderBottom: '1px solid #27272a', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ backgroundColor: '#09090b', color: 'white', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif' }}>
+      
+      {/* HEADER STATUS */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#18181b', padding: '15px', borderRadius: '10px', border: '1px solid #27272a' }}>
         <div>
-          <h1 style={{ color: '#f59e0b', margin: 0, fontSize: '24px' }}>SHERLOCK MASTER CONTROL</h1>
-          <p style={{ color: '#666', margin: '5px 0 0 0' }}>Stanza Attiva: **Tavolo {tableId}**</p>
+          <h2 style={{ margin: 0, fontSize: '18px', color: '#22c55e' }}>GAME CONTROL - TAVOLO {tableId}</h2>
+          <span style={{ fontSize: '12px', color: '#666' }}>Sessione attiva</span>
         </div>
-        <button 
-          onClick={resetGame}
-          style={{ backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <RotateCcw size={16} /> RESET PARTITA
-        </button>
-      </header>
+        <button style={{ backgroundColor: '#27272a', border: 'none', color: 'white', padding: '8px 15px', borderRadius: '5px' }}>ESCI</button>
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
         
-        {/* COLONNA SINISTRA: TIMER E CONTROLLI */}
+        {/* COLONNA SINISTRA: CONTROLLI GIOCO */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ background: '#18181b', padding: '30px', borderRadius: '16px', border: '1px solid #27272a', textAlign: 'center' }}>
-            <div style={{ fontSize: '84px', fontWeight: 'bold', fontFamily: 'monospace', color: tableData.status === 'playing' ? '#f59e0b' : '#3f3f46', marginBottom: '20px' }}>
-              {Math.floor(tableData.timer / 60).toString().padStart(2, '0')}:{(tableData.timer % 60).toString().padStart(2, '0')}
+          
+          {/* BOX AVVIA PARTITA */}
+          <div style={{ background: '#18181b', padding: '20px', borderRadius: '15px', border: '1px solid #27272a', textAlign: 'center' }}>
+            <h3 style={{ color: '#22c55e', marginTop: 0 }}>INIZIA PARTITA</h3>
+            <p style={{ color: '#a1a1aa', fontSize: '13px' }}>Seleziona la durata e avvia il gioco</p>
+            <div style={{ fontSize: '48px', fontWeight: 'bold', margin: '20px 0', color: tableData.status === 'playing' ? '#22c55e' : '#fff' }}>
+              {Math.floor(tableData.timer / 60)} minuti
             </div>
+            <button 
+              onClick={() => updateTable({ status: tableData.status === 'playing' ? 'paused' : 'playing' })}
+              style={{ width: '100%', padding: '15px', backgroundColor: '#22c55e', color: 'black', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+            >
+              {tableData.status === 'playing' ? <Pause size={20}/> : <Play size={20}/>}
+              {tableData.status === 'playing' ? 'PAUSA' : 'AVVIA GIOCO'}
+            </button>
+          </div>
 
-            <div style={{ display: 'flex', gap: '15px' }}>
-              <button 
-                onClick={() => updateTable({ status: tableData.status === 'playing' ? 'paused' : 'playing' })}
-                style={{ flex: 2, padding: '18px', fontSize: '18px', cursor: 'pointer', backgroundColor: tableData.status === 'playing' ? '#3f3f46' : '#22c55e', border: 'none', color: 'white', borderRadius: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-              >
-                {tableData.status === 'playing' ? <Pause size={24}/> : <Play size={24}/>}
-                {tableData.status === 'playing' ? 'PAUSA' : 'AVVIA GIOCO'}
-              </button>
-              <button 
-                onClick={() => addTime(5)}
-                style={{ flex: 1, padding: '18px', backgroundColor: '#27272a', border: '1px solid #3f3f46', color: 'white', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                +5 MIN
-              </button>
+          {/* QR E GIOCATORI IN ATTESA */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div style={{ background: '#18181b', padding: '15px', borderRadius: '15px', border: '1px solid #27272a', textAlign: 'center' }}>
+               <QRCodeSVG value={`https://sherlock-escape-room.vercel.app?role=player&table=${tableId}`} size={100} style={{ background: 'white', padding: '5px', borderRadius: '5px' }} />
+               <p style={{ fontSize: '10px', color: '#666', marginTop: '10px' }}>Scansiona per entrare</p>
+            </div>
+            <div style={{ background: '#18181b', padding: '15px', borderRadius: '15px', border: '1px solid #27272a', textAlign: 'center' }}>
+               <Users color="#22c55e" size={30} style={{ margin: '0 auto' }} />
+               <h4 style={{ margin: '10px 0 5px 0' }}>GIOCATORI</h4>
+               <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#22c55e' }}>{tableData.playersCount || 0}</span>
             </div>
           </div>
 
-          {/* QR CODE DINAMICO */}
-          <div style={{ background: '#18181b', padding: '20px', borderRadius: '16px', border: '1px solid #27272a', display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ background: 'white', padding: '10px', borderRadius: '8px' }}>
-              {/* Il QR ora include automaticamente l'ID del tavolo corretto */}
-              <QRCodeSVG value={`https://sherlock-escape-room.vercel.app?role=player&table=${tableId}`} size={120} />
+          {/* GESTIONE STANZE (Nuovo come nel video) */}
+          <div style={{ background: '#18181b', padding: '20px', borderRadius: '15px', border: '1px solid #27272a' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', color: '#a1a1aa' }}><Monitor size={16} /> GESTIONE STANZE</h3>
+              <button style={{ background: '#22c55e', border: 'none', borderRadius: '4px', padding: '2px 8px' }}><Plus size={14}/></button>
             </div>
-            <div>
-              <h4 style={{ margin: '0 0 5px 0', color: '#f59e0b' }}>Tablet Tavolo {tableId}</h4>
-              <p style={{ margin: 0, fontSize: '13px', color: '#a1a1aa' }}>Inquadra per collegare il tablet di questa stanza.</p>
+            <div style={{ background: '#09090b', padding: '10px', borderRadius: '8px', border: '1px solid #27272a', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Tavolo {tableId}</span>
+              <span style={{ color: '#22c55e' }}>Attivo</span>
             </div>
           </div>
         </div>
 
-        {/* COLONNA DESTRA: INDIZI */}
-        <div style={{ background: '#18181b', padding: '30px', borderRadius: '16px', border: '1px solid #27272a', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#a1a1aa', textTransform: 'uppercase' }}>Invia Indizio ai Detective</h3>
-          <textarea 
-            value={hintText}
-            onChange={(e) => setHintText(e.target.value)}
-            style={{ width: '100%', flexGrow: 1, background: '#09090b', color: '#22c55e', border: '1px solid #27272a', padding: '20px', borderRadius: '10px', outline: 'none', fontFamily: 'monospace', resize: 'none', fontSize: '18px', marginBottom: '20px' }}
-            placeholder="Scrivi qui il messaggio..."
-          />
-          <button 
-            onClick={() => { updateTable({ hint: hintText }); setHintText(""); }}
-            style={{ width: '100%', padding: '18px', backgroundColor: '#f59e0b', color: 'black', fontWeight: 'bold', border: 'none', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '16px' }}
-          >
-            <Send size={20} /> INVIA SUL TABLET
+        {/* COLONNA DESTRA: PROGRESSO E ENIGMI */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* CLASSIFICA E PROGRESSO */}
+          <div style={{ background: '#18181b', padding: '20px', borderRadius: '15px', border: '1px solid #27272a' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#a1a1aa' }}><Trophy size={16} /> CLASSIFICA & PROGRESSO</h3>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#444' }}>
+              <Users size={40} />
+              <p>Nessun giocatore connesso</p>
+            </div>
+          </div>
+
+          {/* RISPOSTE ENIGMI */}
+          <div style={{ background: '#18181b', padding: '20px', borderRadius: '15px', border: '1px solid #27272a' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#a1a1aa' }}><BookOpen size={16} /> RISPOSTE ENIGMI (SOLO MASTER)</h3>
+            <textarea 
+              value={hintText}
+              onChange={(e) => setHintText(e.target.value)}
+              placeholder="Invia un suggerimento..."
+              style={{ width: '100%', height: '100px', background: '#09090b', border: '1px solid #27272a', borderRadius: '8px', color: '#22c55e', padding: '10px', marginBottom: '10px' }}
+            />
+            <button 
+              onClick={() => { updateTable({ hint: hintText }); setHintText(""); }}
+              style={{ width: '100%', padding: '10px', background: '#22c55e', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              INVIA SUGGERIMENTO
+            </button>
+          </div>
+
+          <button onClick={() => updateTable({ status: 'waiting', timer: 3600, hint: '' })} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid #333', color: '#666', borderRadius: '8px' }}>
+            NUOVA SESSIONE
           </button>
         </div>
-
       </div>
     </div>
   );
