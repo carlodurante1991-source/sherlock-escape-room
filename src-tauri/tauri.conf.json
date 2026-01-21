@@ -1,0 +1,20 @@
+{
+  "productName": "moriarty-tauri",
+  "version": "0.1.0",
+  "identifier": "com.moriarty.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Moriarty",
+        "width": 800,
+        "height": 600
+      }
+    ]
+  }
+}
